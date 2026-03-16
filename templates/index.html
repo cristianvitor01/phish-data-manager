@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishDataset — Gerenciador de Dataset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚠</div>
+    <div>
+      <div class="logo-title">PhishDataset</div>
+      <div class="logo-sub">v1.0 · TCC Research</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-view="dashboard">
+      <span class="nav-icon">◈</span> Dashboard
+    </a>
+    <a href="#" class="nav-item" data-view="dataset">
+      <span class="nav-icon">◧</span> Dataset
+    </a>
+    <a href="#" class="nav-item" data-view="nova">
+      <span class="nav-icon">⊕</span> Nova Mensagem
+    </a>
+    <a href="#" class="nav-item" data-view="exportar">
+      <span class="nav-icon">⇣</span> Exportar
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="counter-badge">
+      <span id="sidebar-total">0</span> registros
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main-content">
+
+  <!-- DASHBOARD VIEW -->
+  <section id="view-dashboard" class="view active">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Visão geral do dataset de detecção de golpes</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card stat-total">
+        <div class="stat-label">Total de Mensagens</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:100%"></div></div>
+      </div>
+      <div class="stat-card stat-fraude">
+        <div class="stat-label">Fraudes</div>
+        <div class="stat-value" id="stat-fraudes">0</div>
+        <div class="stat-bar"><div class="stat-bar-fill fraud-fill" id="bar-fraudes" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card stat-legitima">
+        <div class="stat-label">Legítimas</div>
+        <div class="stat-value" id="stat-legitimas">0</div>
+        <div class="stat-bar"><div class="stat-bar-fill legit-fill" id="bar-legitimas" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card stat-suspeita">
+        <div class="stat-label">Suspeitas</div>
+        <div class="stat-value" id="stat-suspeitas">0</div>
+        <div class="stat-bar"><div class="stat-bar-fill sus-fill" id="bar-suspeitas" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card stat-revisada">
+        <div class="stat-label">Revisadas</div>
+        <div class="stat-value" id="stat-revisadas">0</div>
+        <div class="stat-bar"><div class="stat-bar-fill rev-fill" id="bar-revisadas" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Por Tipo de Golpe</h3>
+        <div id="chart-tipos" class="bar-chart"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Por Fonte</h3>
+        <div id="chart-fontes" class="bar-chart"></div>
+      </div>
+    </div>
+    <div class="recent-card">
+      <h3>Últimas Mensagens Adicionadas</h3>
+      <div id="recent-list"></div>
+    </div>
+  </section>
+
+  <!-- DATASET VIEW -->
+  <section id="view-dataset" class="view">
+    <div class="page-header">
+      <h1>Dataset <span id="dataset-count" class="count-badge">0</span></h1>
+      <p>Listagem e gerenciamento de todas as mensagens</p>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="busca" placeholder="🔍 Buscar por texto..." class="filter-input">
+      <select id="f-classificacao" class="filter-select">
+        <option value="todos">Todas classificações</option>
+        <option value="fraude">Fraude</option>
+        <option value="legitima">Legítima</option>
+        <option value="suspeita">Suspeita</option>
+      </select>
+      <select id="f-tipo" class="filter-select">
+        <option value="todos">Todos os tipos</option>
+        <option value="smishing">Smishing</option>
+        <option value="phishing">Phishing</option>
+        <option value="scam">Scam</option>
+        <option value="outro">Outro</option>
+      </select>
+      <select id="f-fonte" class="filter-select">
+        <option value="todos">Todas as fontes</option>
+        <option value="SMS">SMS</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Email">Email</option>
+        <option value="Simulada">Simulada</option>
+      </select>
+      <button class="btn-clear" onclick="limparFiltros()">✕ Limpar</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Texto</th>
+            <th>Classificação</th>
+            <th>Tipo de Golpe</th>
+            <th>Fonte</th>
+            <th>Data</th>
+            <th>Rev.</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-body"></tbody>
+      </table>
+      <div id="empty-state" class="empty-state" style="display:none">
+        <div class="empty-icon">◈</div>
+        <p>Nenhuma mensagem encontrada</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOVA MENSAGEM VIEW -->
+  <section id="view-nova" class="view">
+    <div class="page-header">
+      <h1 id="form-title">Nova Mensagem</h1>
+      <p>Cadastrar nova mensagem no dataset</p>
+    </div>
+    <div class="form-card">
+      <input type="hidden" id="edit-id">
+      <div class="field-group">
+        <label>Texto da Mensagem <span class="req">*</span></label>
+        <textarea id="f-texto" rows="5" placeholder="Cole ou digite o texto completo da mensagem aqui..."></textarea>
+        <div class="char-count"><span id="char-count">0</span> caracteres</div>
+      </div>
+      <div class="fields-row">
+        <div class="field-group">
+          <label>Classificação <span class="req">*</span></label>
+          <select id="f-class">
+            <option value="">Selecione...</option>
+            <option value="fraude">🔴 Fraude</option>
+            <option value="legitima">🟢 Legítima</option>
+            <option value="suspeita">🟡 Suspeita</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Tipo de Golpe <span class="req">*</span></label>
+          <select id="f-tipo-golpe">
+            <option value="">Selecione...</option>
+            <option value="smishing">Smishing</option>
+            <option value="phishing">Phishing</option>
+            <option value="scam">Scam</option>
+            <option value="outro">Outro / N/A</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Fonte <span class="req">*</span></label>
+          <select id="f-fonte-form">
+            <option value="">Selecione...</option>
+            <option value="SMS">SMS</option>
+            <option value="WhatsApp">WhatsApp</option>
+            <option value="Email">Email</option>
+            <option value="Simulada">Simulada</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Observações</label>
+        <textarea id="f-obs" rows="3" placeholder="Notas adicionais, contexto, referências..."></textarea>
+      </div>
+      <div class="field-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="f-revisada">
+          <span class="checkmark"></span>
+          Mensagem já revisada/validada
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="cancelarEdicao()">Cancelar</button>
+        <button class="btn-save" onclick="salvarMensagem()">
+          <span id="btn-save-text">Salvar Mensagem</span>
+        </button>
+      </div>
+      <div id="form-msg" class="form-message" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- EXPORTAR VIEW -->
+  <section id="view-exportar" class="view">
+    <div class="page-header">
+      <h1>Exportar Dataset</h1>
+      <p>Baixar dados formatados para uso em Machine Learning</p>
+    </div>
+    <div class="export-grid">
+      <div class="export-card">
+        <div class="export-icon">CSV</div>
+        <h3>Formato CSV</h3>
+        <p>Ideal para pandas, scikit-learn e a maioria das ferramentas de ML. Arquivo .csv com cabeçalho estruturado.</p>
+        <div class="export-schema">
+          <code>id, texto, label, tipo_golpe, fonte, data_cadastro, revisada</code>
+        </div>
+        <button class="btn-export" onclick="exportar('csv')">⇣ Baixar CSV</button>
+      </div>
+      <div class="export-card">
+        <div class="export-icon">JSON</div>
+        <h3>Formato JSON</h3>
+        <p>Perfeito para transformers, HuggingFace e pipelines customizados. Array de objetos com todos os campos.</p>
+        <div class="export-schema">
+          <code>[{"id": 1, "texto": "...", "label": "fraude", ...}]</code>
+        </div>
+        <button class="btn-export" onclick="exportar('json')">⇣ Baixar JSON</button>
+      </div>
+    </div>
+    <div class="export-info">
+      <h3>Informações do Dataset</h3>
+      <div id="export-stats" class="export-stats-grid"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- MODAL DETALHE -->
+<div id="modal-bg" class="modal-bg" style="display:none" onclick="fecharModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span id="modal-id-badge" class="modal-id"></span>
+      <button class="modal-close" onclick="fecharModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <label>Texto Completo</label>
+        <div id="modal-texto" class="modal-text"></div>
+      </div>
+      <div class="modal-meta">
+        <div class="meta-item">
+          <label>Classificação</label>
+          <div id="modal-class"></div>
+        </div>
+        <div class="meta-item">
+          <label>Tipo de Golpe</label>
+          <div id="modal-tipo"></div>
+        </div>
+        <div class="meta-item">
+          <label>Fonte</label>
+          <div id="modal-fonte"></div>
+        </div>
+        <div class="meta-item">
+          <label>Data</label>
+          <div id="modal-data"></div>
+        </div>
+        <div class="meta-item">
+          <label>Revisada</label>
+          <div id="modal-rev"></div>
+        </div>
+      </div>
+      <div class="modal-section" id="modal-obs-section">
+        <label>Observações</label>
+        <div id="modal-obs" class="modal-obs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

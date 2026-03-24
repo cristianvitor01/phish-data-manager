@@ -4,6 +4,7 @@ import json
 import csv
 import os
 from datetime import datetime
+from supabase_client import listar_mensagens, criar_mensagem, buscar_mensagem, atualizar_mensagem, deletar_mensagem, stats_mensagens
 
 app = Flask(__name__)
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
@@ -53,105 +54,123 @@ def index():
 
 @app.route('/api/mensagens', methods=['GET'])
 def listar():
-    conn = get_db()
-    q = 'SELECT * FROM mensagens WHERE 1=1'
-    params = []
-    for campo, col in [('classificacao','classificacao'),('tipo_golpe','tipo_golpe'),('fonte','fonte')]:
-        val = request.args.get(campo)
-        if val and val != 'todos':
-            q += f' AND {col} = ?'
-            params.append(val)
-    busca = request.args.get('busca')
-    if busca:
-        q += ' AND texto LIKE ?'
-        params.append(f'%{busca}%')
-    q += ' ORDER BY id DESC'
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
+    # Suporta os mesmos filtros previstos no SQLite, mas usando Supabase.
+    params = {}
+    if request.args.get('classificacao') and request.args.get('classificacao') != 'todos':
+        params['classificacao'] = request.args.get('classificacao')
+    if request.args.get('tipo_golpe') and request.args.get('tipo_golpe') != 'todos':
+        params['tipo_golpe'] = request.args.get('tipo_golpe')
+    if request.args.get('fonte') and request.args.get('fonte') != 'todos':
+        params['fonte'] = request.args.get('fonte')
+
+    if request.args.get('busca'):
+        busca = request.args.get('busca')
+        data = listar_mensagens()  # Busca completa do Supabase
+        data = [m for m in data if busca.lower() in m.get('texto', '').lower()]
+    else:
+        data = listar_mensagens()
+
+    # Aplicar filtros adicionais em memória (só quando Supabase não fizer todos os filtros).
+    for chave, valor in params.items():
+        data = [m for m in data if m.get(chave) == valor]
+
+    return jsonify(data)
 
 @app.route('/api/mensagens', methods=['POST'])
 def criar():
     d = request.json
-    conn = get_db()
-    cur = conn.execute(
-        'INSERT INTO mensagens (texto, classificacao, tipo_golpe, fonte, data_cadastro, observacoes, revisada) VALUES (?,?,?,?,?,?,?)',
-        (d['texto'], d['classificacao'], d['tipo_golpe'], d['fonte'],
-         datetime.now().strftime('%Y-%m-%d'), d.get('observacoes',''), d.get('revisada',0))
-    )
-    conn.commit()
-    row = conn.execute('SELECT * FROM mensagens WHERE id=?', (cur.lastrowid,)).fetchone()
-    conn.close()
-    return jsonify(dict(row)), 201
+    d['data_cadastro'] = datetime.now().strftime('%Y-%m-%d')
+    if 'revisada' not in d:
+        d['revisada'] = 0
+
+    registros = criar_mensagem(d)
+    if not registros:
+        return jsonify({'erro': 'Falha ao criar mensagem via Supabase'}), 500
+
+    return jsonify(registros[0]), 201
 
 @app.route('/api/mensagens/<int:id>', methods=['GET'])
 def detalhe(id):
-    conn = get_db()
-    row = conn.execute('SELECT * FROM mensagens WHERE id=?', (id,)).fetchone()
-    conn.close()
-    if not row: return jsonify({'erro':'Não encontrado'}), 404
-    return jsonify(dict(row))
+    try:
+        registro = buscar_mensagem(id)
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+    if not registro:
+        return jsonify({'erro': 'Não encontrado'}), 404
+
+    return jsonify(registro)
 
 @app.route('/api/mensagens/<int:id>', methods=['PUT'])
 def editar(id):
     d = request.json
-    conn = get_db()
-    conn.execute(
-        'UPDATE mensagens SET texto=?, classificacao=?, tipo_golpe=?, fonte=?, observacoes=?, revisada=? WHERE id=?',
-        (d['texto'], d['classificacao'], d['tipo_golpe'], d['fonte'], d.get('observacoes',''), d.get('revisada',0), id)
-    )
-    conn.commit()
-    row = conn.execute('SELECT * FROM mensagens WHERE id=?', (id,)).fetchone()
-    conn.close()
-    return jsonify(dict(row))
+    if 'data_cadastro' in d:
+        d.pop('data_cadastro')
+
+    try:
+        registros = atualizar_mensagem(id, d)
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+    if not registros:
+        return jsonify({'erro': 'Não encontrado'}), 404
+
+    return jsonify(registros[0])
 
 @app.route('/api/mensagens/<int:id>', methods=['DELETE'])
 def excluir(id):
-    conn = get_db()
-    conn.execute('DELETE FROM mensagens WHERE id=?', (id,))
-    conn.commit()
-    conn.close()
+    try:
+        registros = deletar_mensagem(id)
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+    if not registros:
+        return jsonify({'erro': 'Não encontrado'}), 404
+
     return jsonify({'ok': True})
 
 @app.route('/api/stats')
 def stats():
-    conn = get_db()
-    total = conn.execute('SELECT COUNT(*) FROM mensagens').fetchone()[0]
-    fraudes = conn.execute("SELECT COUNT(*) FROM mensagens WHERE classificacao='fraude'").fetchone()[0]
-    legitimas = conn.execute("SELECT COUNT(*) FROM mensagens WHERE classificacao='legitima'").fetchone()[0]
-    suspeitas = conn.execute("SELECT COUNT(*) FROM mensagens WHERE classificacao='suspeita'").fetchone()[0]
-    revisadas = conn.execute("SELECT COUNT(*) FROM mensagens WHERE revisada=1").fetchone()[0]
-    por_tipo = {}
-    for row in conn.execute("SELECT tipo_golpe, COUNT(*) as c FROM mensagens GROUP BY tipo_golpe"):
-        por_tipo[row['tipo_golpe']] = row['c']
-    por_fonte = {}
-    for row in conn.execute("SELECT fonte, COUNT(*) as c FROM mensagens GROUP BY fonte"):
-        por_fonte[row['fonte']] = row['c']
-    conn.close()
-    return jsonify({'total':total,'fraudes':fraudes,'legitimas':legitimas,'suspeitas':suspeitas,'revisadas':revisadas,'por_tipo':por_tipo,'por_fonte':por_fonte})
+    try:
+        resultado = stats_mensagens()
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+    return jsonify(resultado)
 
 @app.route('/api/export/csv')
 def export_csv():
     os.makedirs(EXPORT_DIR, exist_ok=True)
     path = os.path.join(EXPORT_DIR, 'dataset.csv')
-    conn = get_db()
-    rows = conn.execute('SELECT id, texto, classificacao AS label, tipo_golpe, fonte, data_cadastro, revisada FROM mensagens ORDER BY id').fetchall()
-    conn.close()
+    try:
+        rows = listar_mensagens()
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
     with open(path, 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
-        w.writerow(['id','texto','label','tipo_golpe','fonte','data_cadastro','revisada'])
+        w.writerow(['id', 'texto', 'label', 'tipo_golpe', 'fonte', 'data_cadastro', 'revisada'])
         for r in rows:
-            w.writerow(list(r))
+            w.writerow([
+                r.get('id'),
+                r.get('texto'),
+                r.get('classificacao'),
+                r.get('tipo_golpe'),
+                r.get('fonte'),
+                r.get('data_cadastro'),
+                r.get('revisada'),
+            ])
     return send_file(path, as_attachment=True, download_name='dataset.csv')
+
 
 @app.route('/api/export/json')
 def export_json():
     os.makedirs(EXPORT_DIR, exist_ok=True)
     path = os.path.join(EXPORT_DIR, 'dataset.json')
-    conn = get_db()
-    rows = conn.execute('SELECT id, texto, classificacao AS label, tipo_golpe, fonte, data_cadastro, revisada FROM mensagens ORDER BY id').fetchall()
-    conn.close()
-    data = [dict(r) for r in rows]
+    try:
+        data = listar_mensagens()
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return send_file(path, as_attachment=True, download_name='dataset.json')

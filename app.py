@@ -1,180 +1,243 @@
-from flask import Flask, render_template, request, jsonify, send_file
-import sqlite3
-import json
-import csv
-import os
+from flask import Flask, render_template, request, jsonify, Response
 from datetime import datetime
-from supabase_client import listar_mensagens, criar_mensagem, buscar_mensagem, atualizar_mensagem, deletar_mensagem, stats_mensagens
+import csv
+import io
+import json
+
+from supabase_client import (
+    listar_mensagens,
+    criar_mensagem,
+    buscar_mensagem,
+    atualizar_mensagem,
+    deletar_mensagem,
+    stats_mensagens,
+)
 
 app = Flask(__name__)
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
-EXPORT_DIR = os.path.join(os.path.dirname(__file__), 'export')
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
-def init_db():
-    conn = get_db()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS mensagens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            texto TEXT NOT NULL,
-            classificacao TEXT NOT NULL,
-            tipo_golpe TEXT NOT NULL,
-            fonte TEXT NOT NULL,
-            data_cadastro TEXT NOT NULL,
-            observacoes TEXT,
-            revisada INTEGER DEFAULT 0
-        )
-    ''')
-    conn.commit()
-    # Seed sample data if empty
-    count = conn.execute('SELECT COUNT(*) FROM mensagens').fetchone()[0]
-    if count == 0:
-        samples = [
-            ("Parabéns! Você foi selecionado para receber R$500 de crédito. Clique aqui: bit.ly/premio123", "fraude", "smishing", "SMS", "2024-01-10", "Mensagem típica de smishing com link encurtado", 1),
-            ("Seu banco detectou atividade suspeita. Confirme seus dados agora: www.banco-fake.com", "fraude", "phishing", "Email", "2024-01-12", "Phishing bancário clássico", 1),
-            ("Olá! Sua consulta de amanhã às 14h está confirmada. Dúvidas: (85) 3333-4444", "legitima", "outro", "SMS", "2024-01-13", "SMS legítimo de consultório médico", 1),
-            ("URGENTE: Sua conta será bloqueada em 24h. Acesse: www.itau-seguro.net para regularizar", "fraude", "phishing", "Email", "2024-01-15", "Phishing se passando por banco Itaú", 0),
-            ("Oi! Temos uma oferta especial pra você, 50% off em todos os produtos. Válido hoje!", "suspeita", "scam", "WhatsApp", "2024-01-16", "Possível scam de loja desconhecida", 0),
-            ("Lembrete: sua fatura vence amanhã. Valor: R$320,00. Acesse o app para pagar.", "legitima", "outro", "SMS", "2024-01-18", "SMS legítimo de operadora de cartão", 1),
-        ]
-        conn.executemany(
-            'INSERT INTO mensagens (texto, classificacao, tipo_golpe, fonte, data_cadastro, observacoes, revisada) VALUES (?,?,?,?,?,?,?)',
-            samples
-        )
-        conn.commit()
-    conn.close()
+CAMPOS_OBRIGATORIOS = {"texto", "classificacao", "tipo_golpe", "fonte"}
+CLASSIFICACOES_VALIDAS = {"fraude", "legitima", "suspeita"}
 
-@app.route('/')
+
+def erro_json(mensagem, status=400):
+    return jsonify({"erro": mensagem}), status
+
+
+def normalizar_payload(dados: dict, parcial: bool = False):
+    if not isinstance(dados, dict):
+        raise ValueError("JSON inválido ou ausente.")
+
+    payload = {}
+
+    campos_permitidos = {
+        "texto",
+        "classificacao",
+        "tipo_golpe",
+        "fonte",
+        "observacoes",
+        "revisada",
+    }
+
+    for chave, valor in dados.items():
+        if chave in campos_permitidos:
+            payload[chave] = valor
+
+    if not parcial:
+        faltando = [campo for campo in CAMPOS_OBRIGATORIOS if not payload.get(campo)]
+        if faltando:
+            raise ValueError(f"Campos obrigatórios ausentes: {', '.join(faltando)}")
+
+    if "classificacao" in payload:
+        if payload["classificacao"] not in CLASSIFICACOES_VALIDAS:
+            raise ValueError("classificacao deve ser: fraude, legitima ou suspeita.")
+
+    if "revisada" in payload:
+        payload["revisada"] = bool(payload["revisada"])
+
+    return payload
+
+
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/api/mensagens', methods=['GET'])
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    return jsonify({"ok": True, "service": "flask-supabase-api"})
+
+
+@app.route("/api/mensagens", methods=["GET"])
 def listar():
-    # Suporta os mesmos filtros previstos no SQLite, mas usando Supabase.
-    params = {}
-    if request.args.get('classificacao') and request.args.get('classificacao') != 'todos':
-        params['classificacao'] = request.args.get('classificacao')
-    if request.args.get('tipo_golpe') and request.args.get('tipo_golpe') != 'todos':
-        params['tipo_golpe'] = request.args.get('tipo_golpe')
-    if request.args.get('fonte') and request.args.get('fonte') != 'todos':
-        params['fonte'] = request.args.get('fonte')
+    filtros = {}
 
-    if request.args.get('busca'):
-        busca = request.args.get('busca')
-        data = listar_mensagens()  # Busca completa do Supabase
-        data = [m for m in data if busca.lower() in m.get('texto', '').lower()]
-    else:
-        data = listar_mensagens()
+    classificacao = request.args.get("classificacao")
+    tipo_golpe = request.args.get("tipo_golpe")
+    fonte = request.args.get("fonte")
+    busca = request.args.get("busca")
+    revisada = request.args.get("revisada")
 
-    # Aplicar filtros adicionais em memória (só quando Supabase não fizer todos os filtros).
-    for chave, valor in params.items():
-        data = [m for m in data if m.get(chave) == valor]
+    if classificacao and classificacao != "todos":
+        filtros["classificacao"] = classificacao
 
-    return jsonify(data)
+    if tipo_golpe and tipo_golpe != "todos":
+        filtros["tipo_golpe"] = tipo_golpe
 
-@app.route('/api/mensagens', methods=['POST'])
+    if fonte and fonte != "todos":
+        filtros["fonte"] = fonte
+
+    if busca:
+        filtros["busca"] = busca
+
+    if revisada is not None and revisada != "":
+        if revisada.lower() in {"1", "true", "sim"}:
+            filtros["revisada"] = True
+        elif revisada.lower() in {"0", "false", "nao", "não"}:
+            filtros["revisada"] = False
+
+    try:
+        data = listar_mensagens(filtros=filtros)
+        return jsonify(data)
+    except Exception as e:
+        return erro_json(str(e), 500)
+
+
+@app.route("/api/mensagens", methods=["POST"])
 def criar():
-    d = request.json
-    d['data_cadastro'] = datetime.now().strftime('%Y-%m-%d')
-    if 'revisada' not in d:
-        d['revisada'] = 0
-
-    registros = criar_mensagem(d)
-    if not registros:
-        return jsonify({'erro': 'Falha ao criar mensagem via Supabase'}), 500
-
-    return jsonify(registros[0]), 201
-
-@app.route('/api/mensagens/<int:id>', methods=['GET'])
-def detalhe(id):
     try:
-        registro = buscar_mensagem(id)
+        dados = request.get_json(silent=True) or {}
+        payload = normalizar_payload(dados, parcial=False)
+        payload["data_cadastro"] = datetime.now().strftime("%Y-%m-%d")
+        payload.setdefault("revisada", False)
+
+        registros = criar_mensagem(payload)
+
+        if not registros:
+            return erro_json("Falha ao criar mensagem.", 500)
+
+        return jsonify(registros[0]), 201
+    except ValueError as e:
+        return erro_json(str(e), 400)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        return erro_json(str(e), 500)
 
-    if not registro:
-        return jsonify({'erro': 'Não encontrado'}), 404
 
-    return jsonify(registro)
-
-@app.route('/api/mensagens/<int:id>', methods=['PUT'])
-def editar(id):
-    d = request.json
-    if 'data_cadastro' in d:
-        d.pop('data_cadastro')
-
+@app.route("/api/mensagens/<int:mensagem_id>", methods=["GET"])
+def detalhe(mensagem_id):
     try:
-        registros = atualizar_mensagem(id, d)
+        registro = buscar_mensagem(mensagem_id)
+
+        if not registro:
+            return erro_json("Não encontrado.", 404)
+
+        return jsonify(registro)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        return erro_json(str(e), 500)
 
-    if not registros:
-        return jsonify({'erro': 'Não encontrado'}), 404
 
-    return jsonify(registros[0])
-
-@app.route('/api/mensagens/<int:id>', methods=['DELETE'])
-def excluir(id):
+@app.route("/api/mensagens/<int:mensagem_id>", methods=["PUT"])
+def editar(mensagem_id):
     try:
-        registros = deletar_mensagem(id)
+        dados = request.get_json(silent=True) or {}
+        dados.pop("data_cadastro", None)
+        dados.pop("id", None)
+
+        payload = normalizar_payload(dados, parcial=True)
+
+        if not payload:
+            return erro_json("Nenhum campo válido enviado para atualização.", 400)
+
+        registros = atualizar_mensagem(mensagem_id, payload)
+
+        if not registros:
+            return erro_json("Não encontrado.", 404)
+
+        return jsonify(registros[0])
+    except ValueError as e:
+        return erro_json(str(e), 400)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        return erro_json(str(e), 500)
 
-    if not registros:
-        return jsonify({'erro': 'Não encontrado'}), 404
 
-    return jsonify({'ok': True})
+@app.route("/api/mensagens/<int:mensagem_id>", methods=["DELETE"])
+def excluir(mensagem_id):
+    try:
+        registros = deletar_mensagem(mensagem_id)
 
-@app.route('/api/stats')
+        if not registros:
+            return erro_json("Não encontrado.", 404)
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        return erro_json(str(e), 500)
+
+
+@app.route("/api/stats", methods=["GET"])
 def stats():
     try:
         resultado = stats_mensagens()
+        return jsonify(resultado)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
-    return jsonify(resultado)
+        return erro_json(str(e), 500)
 
-@app.route('/api/export/csv')
+
+@app.route("/api/export/csv", methods=["GET"])
 def export_csv():
-    os.makedirs(EXPORT_DIR, exist_ok=True)
-    path = os.path.join(EXPORT_DIR, 'dataset.csv')
     try:
         rows = listar_mensagens()
-    except Exception as e:
-        return jsonify({'erro': str(e)}), 500
 
-    with open(path, 'w', newline='', encoding='utf-8') as f:
-        w = csv.writer(f)
-        w.writerow(['id', 'texto', 'label', 'tipo_golpe', 'fonte', 'data_cadastro', 'revisada'])
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow([
+            "id",
+            "texto",
+            "classificacao",
+            "tipo_golpe",
+            "fonte",
+            "data_cadastro",
+            "observacoes",
+            "revisada",
+        ])
+
         for r in rows:
-            w.writerow([
-                r.get('id'),
-                r.get('texto'),
-                r.get('classificacao'),
-                r.get('tipo_golpe'),
-                r.get('fonte'),
-                r.get('data_cadastro'),
-                r.get('revisada'),
+            writer.writerow([
+                r.get("id"),
+                r.get("texto"),
+                r.get("classificacao"),
+                r.get("tipo_golpe"),
+                r.get("fonte"),
+                r.get("data_cadastro"),
+                r.get("observacoes"),
+                r.get("revisada"),
             ])
-    return send_file(path, as_attachment=True, download_name='dataset.csv')
+
+        csv_content = output.getvalue()
+        output.close()
+
+        return Response(
+            csv_content,
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=dataset.csv"},
+        )
+    except Exception as e:
+        return erro_json(str(e), 500)
 
 
-@app.route('/api/export/json')
+@app.route("/api/export/json", methods=["GET"])
 def export_json():
-    os.makedirs(EXPORT_DIR, exist_ok=True)
-    path = os.path.join(EXPORT_DIR, 'dataset.json')
     try:
         data = listar_mensagens()
+
+        return Response(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            mimetype="application/json; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=dataset.json"},
+        )
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        return erro_json(str(e), 500)
 
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return send_file(path, as_attachment=True, download_name='dataset.json')
 
-if __name__ == '__main__':
-    init_db()
+if __name__ == "__main__":
     app.run(debug=True, port=5000)

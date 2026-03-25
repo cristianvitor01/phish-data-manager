@@ -427,6 +427,7 @@ body {
 .btn-action:hover { border-color: var(--accent); color: var(--accent); }
 .btn-action.del:hover { border-color: var(--red); color: var(--red); }
 .btn-action.view:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-action.edit:hover { border-color: var(--yellow); color: var(--yellow); }
 
 /* BADGES */
 .badge {

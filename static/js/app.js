@@ -53,9 +53,9 @@ async function loadDataset(params = {}) {
       <td>${m.data_cadastro}</td>
       <td>${m.revisada ? '✓' : '-'}</td>
       <td>
-        <button onclick="verDetalhe(${m.id})">Ver</button>
-        <button onclick="editarMensagem(${m.id})">Editar</button>
-        <button onclick="excluir(${m.id})">Excluir</button>
+        <button class="btn-action view" onclick="verDetalhe(${m.id})">Ver</button>
+        <button class="btn-action edit" onclick="editarMensagem(${m.id})">Editar</button>
+        <button class="btn-action del" onclick="excluir(${m.id})">Excluir</button>
       </td>
     </tr>
   `).join('');

@@ -34,6 +34,13 @@ async function loadDataset(params = {}) {
   const msgs = await fetch('/api/mensagens?' + qs).then(r => r.json());
 
   const body = document.getElementById('tabela-body');
+  const emptyState = document.getElementById('empty-state');
+  const datasetCount = document.getElementById('dataset-count');
+  const sidebarTotal = document.getElementById('sidebar-total');
+
+  datasetCount.textContent = msgs.length;
+  sidebarTotal.textContent = msgs.length;
+  emptyState.style.display = msgs.length ? 'none' : 'flex';
 
   body.innerHTML = msgs.map(m => `
     <tr>
@@ -144,3 +151,111 @@ async function verDetalhe(id) {
 
   document.getElementById('modal-bg').style.display = 'flex';
 }
+
+function fecharModal() {
+  document.getElementById('modal-bg').style.display = 'none';
+}
+
+async function loadDashboard() {
+  try {
+    const stats = await fetch('/api/stats').then(r => {
+      if (!r.ok) throw new Error('Erro ao buscar stats');
+      return r.json();
+    });
+
+    const total = stats.total || 0;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-fraudes').textContent = stats.fraudes || 0;
+    document.getElementById('stat-legitimas').textContent = stats.legitimas || 0;
+    document.getElementById('stat-suspeitas').textContent = stats.suspeitas || 0;
+    document.getElementById('stat-revisadas').textContent = stats.revisadas || 0;
+
+    const bar = (value) => `${total ? Math.round((value / total) * 100) : 0}%`;
+    document.getElementById('bar-fraudes').style.width = bar(stats.fraudes || 0);
+    document.getElementById('bar-legitimas').style.width = bar(stats.legitimas || 0);
+    document.getElementById('bar-suspeitas').style.width = bar(stats.suspeitas || 0);
+    document.getElementById('bar-revisadas').style.width = bar(stats.revisadas || 0);
+
+    const recent = await fetch('/api/mensagens').then(r => r.json());
+    const recentItems = (recent || []).slice(0, 5);
+    document.getElementById('recent-list').innerHTML = recentItems.map(m =>
+      `<div class="recent-item"><strong>#${m.id}</strong> ${m.texto.slice(0, 80)} ${m.texto.length > 80 ? '...' : ''}</div>`
+    ).join('') || '<div class="recent-item">Nenhuma mensagem disponível.</div>';
+
+    const buildGrid = (source, containerId) => {
+      const section = document.getElementById(containerId);
+      if (!section) return;
+      const items = source || {};
+      section.innerHTML = Object.entries(items).map(([k,v]) =>
+        `<div class="bar-line"><span>${k}</span><div class="bar-wrapper"><div class="bar-fill" style="width:${total?Math.round((v/total)*100):0}%"></div></div><small>${v}</small></div>`
+      ).join('') || '<p>Nenhum dado disponível</p>';
+    };
+
+    buildGrid(stats.por_tipo, 'chart-tipos');
+    buildGrid(stats.por_fonte, 'chart-fontes');
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao carregar dashboard. Veja console.');
+  }
+}
+
+async function loadExportStats() {
+  try {
+    const stats = await fetch('/api/stats').then(r => {
+      if (!r.ok) throw new Error('Erro ao buscar stats');
+      return r.json();
+    });
+
+    const container = document.getElementById('export-stats');
+    container.innerHTML = `
+      <div><strong>Total:</strong> ${stats.total || 0}</div>
+      <div><strong>Fraudes:</strong> ${stats.fraudes || 0}</div>
+      <div><strong>Legítimas:</strong> ${stats.legitimas || 0}</div>
+      <div><strong>Suspeitas:</strong> ${stats.suspeitas || 0}</div>
+      <div><strong>Revisadas:</strong> ${stats.revisadas || 0}</div>
+      <div><strong>Origem:</strong> ${JSON.stringify(stats.por_origem || {})}</div>
+    `;
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao carregar estatísticas de exportação.');
+  }
+}
+
+function limparFiltros() {
+  document.getElementById('busca').value = '';
+  document.getElementById('f-classificacao').value = 'todos';
+  document.getElementById('f-tipo').value = 'todos';
+  document.getElementById('f-fonte').value = 'todos';
+  document.getElementById('f-origem').value = 'todos';
+  loadDataset();
+}
+
+async function excluir(id) {
+  if (!confirm('Confirmar exclusão?')) return;
+  const res = await fetch(`/api/mensagens/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    alert('Mensagem excluída com sucesso');
+    loadDataset();
+    loadDashboard();
+  } else {
+    alert('Falha ao excluir mensagem');
+  }
+}
+
+function cancelarEdicao() {
+  resetForm();
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector('[data-view="dataset"]').classList.add('active');
+  document.getElementById('view-dataset').classList.add('active');
+  loadDataset();
+}
+
+function exportar(tipo) {
+  window.location.href = `/api/export/${tipo}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  loadDataset();
+});

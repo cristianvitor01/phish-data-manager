@@ -95,6 +95,7 @@ function resetForm() {
   document.getElementById('f-origem-form').value = ''; // NOVO
   document.getElementById('f-obs').value = '';
   document.getElementById('f-revisada').checked = false;
+  document.getElementById('form-title').textContent = 'Nova Mensagem';
 }
 
 async function editarMensagem(id) {
@@ -108,6 +109,15 @@ async function editarMensagem(id) {
   document.getElementById('f-origem-form').value = m.origem; // NOVO
   document.getElementById('f-obs').value = m.observacoes || '';
   document.getElementById('f-revisada').checked = !!m.revisada;
+
+  // Switch to form view
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector('[data-view="nova"]').classList.add('active');
+  document.getElementById('view-nova').classList.add('active');
+
+  // Change title
+  document.getElementById('form-title').textContent = 'Editar Mensagem';
 }
 
 async function salvarMensagem() {
@@ -146,6 +156,11 @@ async function salvarMensagem() {
     alert('Salvo com sucesso!');
     resetForm();
     loadDataset();
+    // Switch back to dataset view
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelector('[data-view="dataset"]').classList.add('active');
+    document.getElementById('view-dataset').classList.add('active');
   } else {
     alert('Erro ao salvar');
   }

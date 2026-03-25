@@ -20,6 +20,7 @@ CAMPOS_PERMITIDOS = {
     "classificacao",
     "tipo_golpe",
     "fonte",
+    "origem",
     "data_cadastro",
     "observacoes",
     "revisada",
@@ -47,6 +48,9 @@ def listar_mensagens(filtros: Optional[dict] = None):
         if filtros.get("fonte"):
             query = query.eq("fonte", filtros["fonte"])
 
+        if filtros.get("origem"):
+            query = query.eq("origem", filtros["origem"])
+
         if "revisada" in filtros:
             query = query.eq("revisada", filtros["revisada"])
 
@@ -65,6 +69,9 @@ def criar_mensagem(dados: dict):
         response = supabase.table(TABELA).insert(payload).execute()
         return response.data or []
     except Exception as e:
+        msg = str(e)
+        if "23505" in msg:
+            raise RuntimeError("Conflito ao inserir registro. Verifique chave duplicada no banco.")
         raise RuntimeError(f"Erro ao criar mensagem no Supabase: {e}")
 
 
@@ -124,16 +131,21 @@ def stats_mensagens():
 
         por_tipo = {}
         por_fonte = {}
+        por_origem = {}
 
         for m in registros:
             tipo = m.get("tipo_golpe")
             fonte = m.get("fonte")
+            origem = m.get("origem")
 
             if tipo:
                 por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
 
             if fonte:
                 por_fonte[fonte] = por_fonte.get(fonte, 0) + 1
+
+            if origem:
+                por_origem[origem] = por_origem.get(origem, 0) + 1
 
         return {
             "total": total,
@@ -143,6 +155,7 @@ def stats_mensagens():
             "revisadas": revisadas,
             "por_tipo": por_tipo,
             "por_fonte": por_fonte,
+            "por_origem": por_origem,
         }
     except Exception as e:
         raise RuntimeError(f"Erro ao gerar estatísticas: {e}")

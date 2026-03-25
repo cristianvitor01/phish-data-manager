@@ -118,7 +118,15 @@
         <option value="SMS">SMS</option>
         <option value="WhatsApp">WhatsApp</option>
         <option value="Email">Email</option>
-        <option value="Simulada">Simulada</option>
+        <option value="Telegram">Telegram</option>
+        <option value="Instagram">Instagram</option>
+      </select>
+      <select id="f-origem" class="filter-select">
+        <option value="todos">Todas as origens</option>
+        <option value="simulada">Simulada</option>
+        <option value="real">Real</option>
+        <option value="dataset">Dataset</option>
+        <option value="coleta_pessoal">Coleta pessoal</option>
       </select>
       <button class="btn-clear" onclick="limparFiltros()">✕ Limpar</button>
     </div>
@@ -131,6 +139,7 @@
             <th>Classificação</th>
             <th>Tipo de Golpe</th>
             <th>Fonte</th>
+            <th>Origem</th>
             <th>Data</th>
             <th>Rev.</th>
             <th>Ações</th>
@@ -185,7 +194,18 @@
             <option value="SMS">SMS</option>
             <option value="WhatsApp">WhatsApp</option>
             <option value="Email">Email</option>
-            <option value="Simulada">Simulada</option>
+            <option value="Telegram">Telegram</option>
+            <option value="Instagram">Instagram</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Origem <span class="req">*</span></label>
+          <select id="f-origem-form">
+            <option value="">Selecione...</option>
+            <option value="simulada">Simulada</option>
+            <option value="real">Real</option>
+            <option value="dataset">Obtida de dataset</option>
+            <option value="coleta_pessoal">Coleta pessoal</option>
           </select>
         </div>
       </div>
@@ -222,7 +242,7 @@
         <h3>Formato CSV</h3>
         <p>Ideal para pandas, scikit-learn e a maioria das ferramentas de ML. Arquivo .csv com cabeçalho estruturado.</p>
         <div class="export-schema">
-          <code>id, texto, label, tipo_golpe, fonte, data_cadastro, revisada</code>
+          <code>id, texto, label, tipo_golpe, fonte, origem, data_cadastro, revisada</code>
         </div>
         <button class="btn-export" onclick="exportar('csv')">⇣ Baixar CSV</button>
       </div>
@@ -231,7 +251,7 @@
         <h3>Formato JSON</h3>
         <p>Perfeito para transformers, HuggingFace e pipelines customizados. Array de objetos com todos os campos.</p>
         <div class="export-schema">
-          <code>[{"id": 1, "texto": "...", "label": "fraude", ...}]</code>
+          <code>[{"id": 1, "texto": "...", "label": "fraude", "origem": "dataset", ...}]</code>
         </div>
         <button class="btn-export" onclick="exportar('json')">⇣ Baixar JSON</button>
       </div>
@@ -268,6 +288,10 @@
         <div class="meta-item">
           <label>Fonte</label>
           <div id="modal-fonte"></div>
+        </div>
+        <div class="meta-item">
+          <label>Origem</label>
+          <div id="modal-origem"></div>
         </div>
         <div class="meta-item">
           <label>Data</label>

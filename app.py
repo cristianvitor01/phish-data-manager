@@ -16,8 +16,9 @@ from supabase_client import (
 app = Flask(__name__)
 
 
-CAMPOS_OBRIGATORIOS = {"texto", "classificacao", "tipo_golpe", "fonte"}
+CAMPOS_OBRIGATORIOS = {"texto", "classificacao", "tipo_golpe", "fonte", "origem"}
 CLASSIFICACOES_VALIDAS = {"fraude", "legitima", "suspeita"}
+ORIGENS_VALIDAS = {"simulada", "real", "dataset", "coleta_pessoal"}
 
 
 def erro_json(mensagem, status=400):
@@ -37,6 +38,7 @@ def normalizar_payload(dados: dict, parcial: bool = False):
         "fonte",
         "observacoes",
         "revisada",
+        "origem",
     }
 
     for chave, valor in dados.items():
@@ -51,6 +53,10 @@ def normalizar_payload(dados: dict, parcial: bool = False):
     if "classificacao" in payload:
         if payload["classificacao"] not in CLASSIFICACOES_VALIDAS:
             raise ValueError("classificacao deve ser: fraude, legitima ou suspeita.")
+
+    if "origem" in payload:
+        if payload["origem"] not in ORIGENS_VALIDAS:
+            raise ValueError("origem deve ser: simulada, real, dataset ou coleta_pessoal.")
 
     if "revisada" in payload:
         payload["revisada"] = bool(payload["revisada"])
@@ -75,6 +81,7 @@ def listar():
     classificacao = request.args.get("classificacao")
     tipo_golpe = request.args.get("tipo_golpe")
     fonte = request.args.get("fonte")
+    origem = request.args.get("origem")
     busca = request.args.get("busca")
     revisada = request.args.get("revisada")
 
@@ -86,6 +93,9 @@ def listar():
 
     if fonte and fonte != "todos":
         filtros["fonte"] = fonte
+
+    if origem and origem != "todos":
+        filtros["origem"] = origem
 
     if busca:
         filtros["busca"] = busca
@@ -107,6 +117,10 @@ def listar():
 def criar():
     try:
         dados = request.get_json(silent=True) or {}
+
+        dados.pop("id", None)
+        dados.pop("data_cadastro", None)
+
         payload = normalizar_payload(dados, parcial=False)
         payload["data_cadastro"] = datetime.now().strftime("%Y-%m-%d")
         payload.setdefault("revisada", False)
@@ -196,6 +210,7 @@ def export_csv():
             "classificacao",
             "tipo_golpe",
             "fonte",
+            "origem",
             "data_cadastro",
             "observacoes",
             "revisada",
@@ -208,6 +223,7 @@ def export_csv():
                 r.get("classificacao"),
                 r.get("tipo_golpe"),
                 r.get("fonte"),
+                r.get("origem"),
                 r.get("data_cadastro"),
                 r.get("observacoes"),
                 r.get("revisada"),

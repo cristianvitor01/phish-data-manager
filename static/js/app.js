@@ -63,13 +63,26 @@ async function loadDataset(params = {}) {
 
 // FILTROS
 function getFilters() {
-  return {
-    busca: document.getElementById('busca').value,
+  const filtros = {
+    busca: document.getElementById('busca').value.trim(),
     classificacao: document.getElementById('f-classificacao').value,
     tipo_golpe: document.getElementById('f-tipo').value,
     fonte: document.getElementById('f-fonte').value,
     origem: document.getElementById('f-origem').value // NOVO
   };
+
+  // remover filtros não aplicáveis para evitar query string redundante
+  Object.keys(filtros).forEach(key => {
+    if (filtros[key] === '' || filtros[key] === 'todos') {
+      delete filtros[key];
+    }
+  });
+
+  return filtros;
+}
+
+function applyFilters() {
+  loadDataset(getFilters());
 }
 
 // FORM
@@ -258,4 +271,10 @@ function exportar(tipo) {
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
   loadDataset();
+
+  document.getElementById('busca').addEventListener('input', () => applyFilters());
+  document.getElementById('f-classificacao').addEventListener('change', () => applyFilters());
+  document.getElementById('f-tipo').addEventListener('change', () => applyFilters());
+  document.getElementById('f-fonte').addEventListener('change', () => applyFilters());
+  document.getElementById('f-origem').addEventListener('change', () => applyFilters());
 });

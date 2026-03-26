@@ -32,6 +32,10 @@ body {
   line-height: 1.6;
 }
 
+.main-content {
+  padding-top: 56px; /* afasta conteúdo do topo em mobile */
+}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg2); }

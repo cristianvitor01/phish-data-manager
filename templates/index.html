@@ -43,6 +43,9 @@
   </div>
 </aside>
 
+<!-- OVERLAY FOR MOBILE DRAWER -->
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+
 <!-- MAIN -->
 <main class="main-content">
 
@@ -165,64 +168,87 @@
     </div>
     <div class="form-card">
       <input type="hidden" id="edit-id">
-      <div class="field-group">
-        <label>Texto da Mensagem <span class="req">*</span></label>
-        <textarea id="f-texto" rows="5" placeholder="Cole ou digite o texto completo da mensagem aqui..."></textarea>
-        <div class="char-count"><span id="char-count">0</span> caracteres</div>
-      </div>
-      <div class="fields-row">
+      
+      <!-- SEÇÃO MENSAGEM -->
+      <div class="form-section">
+        <h2 class="section-title">Mensagem</h2>
         <div class="field-group">
-          <label>Classificação <span class="req">*</span></label>
-          <select id="f-class">
-            <option value="">Selecione...</option>
-            <option value="fraude">🔴 Fraude</option>
-            <option value="legitima">🟢 Legítima</option>
-            <option value="suspeita">🟡 Suspeita</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>Tipo de Golpe <span class="req">*</span></label>
-          <select id="f-tipo-golpe">
-            <option value="">Selecione...</option>
-            <option value="smishing">Smishing</option>
-            <option value="phishing">Phishing</option>
-            <option value="scam">Scam</option>
-            <option value="outro">Outro / N/A</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>Fonte <span class="req">*</span></label>
-          <select id="f-fonte-form">
-            <option value="">Selecione...</option>
-            <option value="SMS">SMS</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Email">Email</option>
-            <option value="Telegram">Telegram</option>
-            <option value="Instagram">Instagram</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>Origem <span class="req">*</span></label>
-          <select id="f-origem-form">
-            <option value="">Selecione...</option>
-            <option value="simulada">Simulada</option>
-            <option value="real">Real</option>
-            <option value="dataset">Obtida de dataset</option>
-            <option value="coleta_pessoal">Coleta pessoal</option>
-          </select>
+          <label>Texto da Mensagem <span class="req">*</span></label>
+          <textarea id="f-texto" rows="5" placeholder="Cole ou digite o texto completo da mensagem aqui..."></textarea>
+          <div class="char-count"><span id="char-count">0</span> caracteres</div>
         </div>
       </div>
-      <div class="field-group">
-        <label>Observações</label>
-        <textarea id="f-obs" rows="3" placeholder="Notas adicionais, contexto, referências..."></textarea>
+      
+      <!-- SEÇÃO CLASSIFICAÇÃO -->
+      <div class="form-section">
+        <h2 class="section-title">Classificação</h2>
+        <div class="fields-row">
+          <div class="field-group">
+            <label>Classificação <span class="req">*</span></label>
+            <select id="f-class">
+              <option value="">Selecione a classificação...</option>
+              <option value="fraude">🔴 Fraude</option>
+              <option value="legitima">🟢 Legítima</option>
+              <option value="suspeita">🟡 Suspeita</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Tipo de Golpe <span class="req">*</span></label>
+            <select id="f-tipo-golpe">
+              <option value="">Selecione o tipo de golpe...</option>
+              <option value="smishing">Smishing</option>
+              <option value="phishing">Phishing</option>
+              <option value="scam">Scam</option>
+              <option value="outro">Outro / N/A</option>
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="field-group checkbox-group">
-        <label class="checkbox-label">
-          <input type="checkbox" id="f-revisada">
-          <span class="checkmark"></span>
-          Mensagem já revisada/validada
-        </label>
+      
+      <!-- SEÇÃO ORIGEM -->
+      <div class="form-section">
+        <h2 class="section-title">Origem</h2>
+        <div class="fields-row">
+          <div class="field-group">
+            <label>Fonte <span class="req">*</span></label>
+            <select id="f-fonte-form">
+              <option value="">Selecione a fonte...</option>
+              <option value="SMS">SMS</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Email">Email</option>
+              <option value="Telegram">Telegram</option>
+              <option value="Instagram">Instagram</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Origem <span class="req">*</span></label>
+            <select id="f-origem-form">
+              <option value="">Selecione a origem...</option>
+              <option value="simulada">Simulada</option>
+              <option value="real">Real</option>
+              <option value="dataset">Obtida de dataset</option>
+              <option value="coleta_pessoal">Coleta pessoal</option>
+            </select>
+          </div>
+        </div>
       </div>
+      
+      <!-- SEÇÃO OBSERVAÇÕES -->
+      <div class="form-section">
+        <h2 class="section-title">Observações</h2>
+        <div class="field-group">
+          <label>Observações</label>
+          <textarea id="f-obs" rows="3" placeholder="Notas adicionais, contexto, referências..."></textarea>
+        </div>
+        <div class="field-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="f-revisada">
+            <span class="checkmark"></span>
+            Mensagem já revisada/validada
+          </label>
+        </div>
+      </div>
+      
       <div class="form-actions">
         <button class="btn-cancel" onclick="cancelarEdicao()">Cancelar</button>
         <button class="btn-save" onclick="salvarMensagem()">

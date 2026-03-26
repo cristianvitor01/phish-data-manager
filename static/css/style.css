@@ -43,7 +43,7 @@ body {
   position: fixed;
   top: 16px;
   left: 16px;
-  z-index: 101;
+  z-index: 9999;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius);

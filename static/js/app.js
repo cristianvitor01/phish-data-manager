@@ -14,25 +14,13 @@ document.querySelectorAll('.nav-item').forEach(item => {
     // Close sidebar on mobile after navigation
     if (window.innerWidth <= 900) {
       document.querySelector('.sidebar').classList.remove('open');
-      document.getElementById('sidebar-overlay').classList.remove('show');
     }
   });
 });
 
 // Mobile menu toggle
 document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-  const sidebar = document.querySelector('.sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-  sidebar.classList.toggle('open');
-  overlay.classList.toggle('show');
-});
-
-// Close sidebar when clicking overlay
-document.getElementById('sidebar-overlay').addEventListener('click', () => {
-  const sidebar = document.querySelector('.sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-  sidebar.classList.remove('open');
-  overlay.classList.remove('show');
+  document.querySelector('.sidebar').classList.toggle('open');
 });
 
 // BADGES

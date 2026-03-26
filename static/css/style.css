@@ -37,17 +37,24 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg2); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-/* SIDEBAR */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--bg2);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
+/* MOBILE MENU BUTTON */
+.mobile-menu-btn {
+  display: none;
   position: fixed;
-  top: 0; left: 0; bottom: 0;
-  z-index: 100;
+  top: 16px;
+  left: 16px;
+  z-index: 101;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 18px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
+
+.mobile-menu-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .sidebar-logo {
   padding: 24px 20px 20px;
@@ -826,15 +833,31 @@ body {
 
 /* RESPONSIVE */
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); }
+  .mobile-menu-btn { display: block; }
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+  .sidebar.open { transform: translateX(0); }
   .main-content { margin-left: 0; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .charts-row { grid-template-columns: 1fr; }
   .export-grid { grid-template-columns: 1fr; }
   .fields-row { grid-template-columns: 1fr; }
+  .filter-bar { flex-direction: column; gap: 8px; }
+  .filter-input { min-width: auto; width: 100%; }
+  .filter-select { width: 100%; }
+  .modal { width: 95vw; max-width: none; }
+  .export-stats-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
   .view { padding: 20px 16px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .page-header h1 { font-size: 20px; }
+  .stat-value { font-size: 24px; }
+  .modal-meta { grid-template-columns: 1fr; }
+  .data-table th, .data-table td { padding: 8px 6px; font-size: 12px; }
+  .td-texto { max-width: 150px; }
+  .btn-action { padding: 4px 6px; font-size: 10px; }
+  .form-card { padding: 20px; }
+  .export-card { padding: 20px; }
+  .export-icon { font-size: 24px; }
 }

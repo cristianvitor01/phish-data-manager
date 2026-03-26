@@ -11,7 +11,25 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (view === 'dataset') loadDataset();
     if (view === 'exportar') loadExportStats();
     if (view === 'nova') resetForm();
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth <= 900) {
+      document.querySelector('.sidebar').classList.remove('open');
+    }
   });
+});
+
+// Mobile menu toggle
+document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+  document.querySelector('.sidebar').classList.toggle('open');
+});
+
+// Close sidebar when clicking outside on mobile
+document.addEventListener('click', (e) => {
+  const sidebar = document.querySelector('.sidebar');
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  if (window.innerWidth <= 900 && !sidebar.contains(e.target) && e.target !== menuBtn) {
+    sidebar.classList.remove('open');
+  }
 });
 
 // BADGES
